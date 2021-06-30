@@ -4,7 +4,7 @@ application:
     project: 'BCBot'
     organization: 'QoveryCommunity'
 routers:
-    - name: 'main-process'
+    - name: 'main'
       routes:
           - application_name: 'bc-bot'
             paths:
