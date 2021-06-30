@@ -1,11 +1,11 @@
 ---
 application:
-    name: 'based-capital-bot'
+    name: 'bc-bot'
     project: 'BCBot'
     organization: 'QoveryCommunity'
 routers:
     - name: 'main-process'
       routes:
-          - application_name: 'based-capital-bot'
+          - application_name: 'bc-bot'
             paths:
                 - '/*'
