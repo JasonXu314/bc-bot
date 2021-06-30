@@ -11,7 +11,7 @@ client.on('ready', async () => {
 
 	setInterval(() => {
 		msg!.edit(`The time is ${new Date().toTimeString()}`);
-	}, 5000);
+	}, 1000 * 60 * 10);
 });
 
 client.login(process.env.DISCORD_TOKEN!);
