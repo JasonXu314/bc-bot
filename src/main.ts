@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Client, Message, TextChannel } from 'discord.js';
+import { Client, ClientUser, Message, TextChannel } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 
@@ -42,15 +42,29 @@ const client = new Client();
 client.on('ready', async () => {
 	console.log('Connected to Discord');
 	const ch = (await client.channels.fetch('859672475121877002')) as TextChannel;
+	const msg = await ch.messages.fetch('859673437537828875');
+
+	const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
+	const txt = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${curHashrate / 1_000_000}MH\nReported Hashrate: ${
+		repHashrate / 1_000_000
+	}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${usdRate * 60 * 24}\nGas Rate: ${gasRate}`;
+	msg.edit(txt);
+	const matthew = (await client.users.fetch('854267715539042329')) as ClientUser;
+	matthew.send(txt);
+
+	let counter = 0;
 
 	setInterval(async () => {
 		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-		ch.send(
-			`As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${curHashrate / 1_000_000}MH\nReported Hashrate: ${
-				repHashrate / 1_000_000
-			}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${usdRate * 60 * 24}\nGas Rate: ${gasRate}`
-		);
-	}, 1000 * 60 * 30);
+		const txt = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${curHashrate / 1_000_000}MH\nReported Hashrate: ${
+			repHashrate / 1_000_000
+		}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${usdRate * 60 * 24}\nGas Rate: ${gasRate}`;
+		msg.edit(txt);
+		if (counter % 3 === 0) {
+			matthew.send(txt);
+		}
+		counter = (counter + 1) % 3;
+	}, 1000 * 60 * 10);
 });
 
 client.on('message', async (msg: Message) => {
