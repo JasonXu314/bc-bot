@@ -77,6 +77,8 @@ client.on('ready', async () => {
 
 		setTimeout(sendLois, eleven.valueOf() - today.valueOf());
 	}
+
+	sendLois();
 });
 
 client.on('message', async (msg: Message) => {
