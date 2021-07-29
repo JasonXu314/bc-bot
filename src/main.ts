@@ -50,6 +50,7 @@ client.on('ready', async () => {
 	const short = `$${(usdRate * 60 * 24).toFixed(2)}, ${(ethRate * 60 * 24).toFixed(4)} ETH`;
 	ch.setName(short);
 	const matthew = (await client.users.fetch('854267715539042329')) as ClientUser;
+	const lois = (await client.users.fetch('284444211254657024')) as ClientUser;
 	matthew.send(long);
 
 	setInterval(async () => {
@@ -61,6 +62,21 @@ client.on('ready', async () => {
 		ch.setName(short);
 		matthew.send(long);
 	}, 1000 * 60 * 10);
+
+	async function sendLois() {
+		const today = new Date();
+		const day = today.getDate();
+		const month = today.getMonth();
+		const year = today.getFullYear();
+		const eleven = new Date(year, month, day, 11);
+		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
+		const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${curHashrate / 1_000_000}MH\nReported Hashrate: ${
+			repHashrate / 1_000_000
+		}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${usdRate * 60 * 24}\nGas Rate: ${gasRate}`;
+		lois.send(long);
+
+		setTimeout(sendLois, eleven.valueOf() - today.valueOf());
+	}
 });
 
 client.on('message', async (msg: Message) => {
