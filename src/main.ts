@@ -69,7 +69,7 @@ client.on('ready', async () => {
 		const month = today.getMonth();
 		const year = today.getFullYear();
 		const hour = today.getHours();
-		const eleven = new Date(year, month, hour > 11 ? day + 1 : day, 11);
+		const eleven = new Date(year, month, hour >= 11 ? day + 1 : day, 11);
 		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
 		const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${curHashrate / 1_000_000}MH\nReported Hashrate: ${
 			repHashrate / 1_000_000
