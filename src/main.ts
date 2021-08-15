@@ -96,10 +96,10 @@ client.on('ready', async () => {
 	let mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
 		fs.appendFileSync('./log.txt', err);
 	})) as VoiceChannel | undefined;
-	let secCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+	let secCh = (await client.channels.fetch('876493768491163658').catch((err) => {
 		fs.appendFileSync('./log.txt', err);
 	})) as VoiceChannel | undefined;
-	let feCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+	let feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
 		fs.appendFileSync('./log.txt', err);
 	})) as VoiceChannel | undefined;
 
@@ -149,12 +149,12 @@ client.on('ready', async () => {
 			})) as VoiceChannel | undefined;
 		}
 		if (!secCh) {
-			secCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+			secCh = (await client.channels.fetch('876493768491163658').catch((err) => {
 				fs.appendFileSync('./log.txt', err);
 			})) as VoiceChannel | undefined;
 		}
 		if (!feCh) {
-			feCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+			feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
 				fs.appendFileSync('./log.txt', err);
 			})) as VoiceChannel | undefined;
 		}
