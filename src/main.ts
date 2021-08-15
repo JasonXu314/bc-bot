@@ -15,14 +15,53 @@ interface IStats {
 	usdRate: number;
 	ethRate: number;
 	gasRate: number;
+	statuses: { '3060_rig': boolean; FE_Rig: boolean; Main_Rig: boolean };
+}
+
+interface IStatus {
+	hashrate: string;
+	hashrate24h: string;
+	hashrate24hDiff: number;
+	online: boolean;
+	reportedHashrate: string;
+	reportedHashrate24h: string;
+	sharesStatusStats: {
+		lastShareDt: string;
+		staleCount: string;
+		staleRate: number;
+		validCount: string;
+		validRate: number;
+	};
+}
+
+interface IStatusResponse {
+	workers: {
+		'3060_rig': IStatus;
+		FE_Rig: IStatus;
+		Main_Rig: IStatus;
+	};
 }
 
 async function fetchData(): Promise<IStats> {
 	const res = await axios.get(`${BASE_URL}/miner/${ADDR}/currentStats`).catch((err: AxiosError<any>) => {
 		fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
 	});
-	if (!res) {
-		return { usdRate: 0, ethRate: 0, repHashrate: 0, curHashrate: 0, gasRate: 0 };
+	const statusRes = await axios
+		.get<IStatusResponse>(
+			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/workers'
+		)
+		.catch((err: AxiosError<any>) => {
+			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
+		});
+	if (!res || !statusRes) {
+		return {
+			usdRate: 0,
+			ethRate: 0,
+			repHashrate: 0,
+			curHashrate: 0,
+			gasRate: 0,
+			statuses: { '3060_rig': false, FE_Rig: false, Main_Rig: false }
+		};
 	}
 
 	const usdRate = res.data.data.usdPerMin;
@@ -38,7 +77,12 @@ async function fetchData(): Promise<IStats> {
 		ethRate,
 		repHashrate,
 		curHashrate,
-		gasRate
+		gasRate,
+		statuses: {
+			'3060_rig': statusRes.data.workers['3060_rig'].online,
+			FE_Rig: statusRes.data.workers.FE_Rig.online,
+			Main_Rig: statusRes.data.workers.Main_Rig.online
+		}
 	};
 }
 
@@ -49,8 +93,17 @@ client.on('ready', async () => {
 	let ch = (await client.channels.fetch('864740513709686785').catch((err) => {
 		fs.appendFileSync('./log.txt', err);
 	})) as VoiceChannel | undefined;
+	let mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+		fs.appendFileSync('./log.txt', err);
+	})) as VoiceChannel | undefined;
+	let secCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+		fs.appendFileSync('./log.txt', err);
+	})) as VoiceChannel | undefined;
+	let feCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+		fs.appendFileSync('./log.txt', err);
+	})) as VoiceChannel | undefined;
 
-	const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
+	const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
 	const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
 		curHashrate / 1_000_000
 	}MH\nReported Hashrate: ${repHashrate / 1_000_000}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${
@@ -59,6 +112,15 @@ client.on('ready', async () => {
 	const short = `$${(usdRate * 60 * 24).toFixed(2)}, ${(ethRate * 60 * 24).toFixed(4)} ETH`;
 	if (ch) {
 		ch.setName(short);
+	}
+	if (mainCh) {
+		mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig');
+	}
+	if (secCh) {
+		secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig');
+	}
+	if (feCh) {
+		feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig');
 	}
 	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
 		fs.appendFileSync('./log.txt', `Could not fetch matthew: ${err}`);
@@ -81,9 +143,24 @@ client.on('ready', async () => {
 				fs.appendFileSync('./log.txt', `Could not fetch matthew: ${err}`);
 			})) as ClientUser | undefined;
 		}
+		if (!mainCh) {
+			mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+				fs.appendFileSync('./log.txt', err);
+			})) as VoiceChannel | undefined;
+		}
+		if (!secCh) {
+			secCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+				fs.appendFileSync('./log.txt', err);
+			})) as VoiceChannel | undefined;
+		}
+		if (!feCh) {
+			feCh = (await client.channels.fetch('876493133540626442').catch((err) => {
+				fs.appendFileSync('./log.txt', err);
+			})) as VoiceChannel | undefined;
+		}
 
-		if (ch || matthew) {
-			const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
+		if (ch || matthew || mainCh || secCh || feCh) {
+			const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
 			const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
 				curHashrate / 1_000_000
 			}MH\nReported Hashrate: ${repHashrate / 1_000_000}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${
@@ -95,6 +172,15 @@ client.on('ready', async () => {
 			}
 			if (matthew) {
 				matthew.send(long);
+			}
+			if (mainCh) {
+				mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig');
+			}
+			if (secCh) {
+				secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig');
+			}
+			if (feCh) {
+				feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig');
 			}
 		}
 	}, 1000 * 60 * 10);
