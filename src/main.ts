@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { Client, ClientUser, Message, TextChannel, VoiceChannel } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
@@ -97,19 +98,19 @@ async function fetchData(): Promise<IStats> {
 			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/workers'
 		)
 		.catch((err: AxiosError<any>) => {
-			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
 	const earningsRes = await axios
 		.get<IEarningsResponse>(
 			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/billing-acc'
 		)
 		.catch((err: AxiosError<any>) => {
-			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
 	const exchangeRes = await axios
 		.get<IExchangeResponse>('https://hiveon.net/api/v1/stats/pool')
 		.catch((err: AxiosError<any>) => {
-			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
 	if (!earningsRes || !statusRes || !exchangeRes) {
 		return {
@@ -152,16 +153,16 @@ const client = new Client();
 client.on('ready', async () => {
 	console.log('Connected to Discord');
 	let ch = (await client.channels.fetch('864740513709686785').catch((err) => {
-		fs.appendFileSync('./log.txt', err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 	})) as VoiceChannel | undefined;
 	let mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
-		fs.appendFileSync('./log.txt', err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 	})) as VoiceChannel | undefined;
 	let secCh = (await client.channels.fetch('876493768491163658').catch((err) => {
-		fs.appendFileSync('./log.txt', err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 	})) as VoiceChannel | undefined;
 	let feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
-		fs.appendFileSync('./log.txt', err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 	})) as VoiceChannel | undefined;
 
 	const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
@@ -184,10 +185,10 @@ client.on('ready', async () => {
 		feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig');
 	}
 	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-		fs.appendFileSync('./log.txt', `Could not fetch matthew: ${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${err}`);
 	})) as ClientUser | undefined;
 	let lois = (await client.users.fetch('284444211254657024').catch((err) => {
-		fs.appendFileSync('./log.txt', `Could not fetch lois: ${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${err}`);
 	})) as ClientUser | undefined;
 	if (matthew) {
 		matthew.send(long);
@@ -196,27 +197,27 @@ client.on('ready', async () => {
 	setInterval(async () => {
 		if (!ch) {
 			ch = (await client.channels.fetch('864740513709686785').catch((err) => {
-				fs.appendFileSync('./log.txt', err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 			})) as VoiceChannel | undefined;
 		}
 		if (!matthew) {
 			matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-				fs.appendFileSync('./log.txt', `Could not fetch matthew: ${err}`);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${err}`);
 			})) as ClientUser | undefined;
 		}
 		if (!mainCh) {
 			mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
-				fs.appendFileSync('./log.txt', err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 			})) as VoiceChannel | undefined;
 		}
 		if (!secCh) {
 			secCh = (await client.channels.fetch('876493768491163658').catch((err) => {
-				fs.appendFileSync('./log.txt', err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 			})) as VoiceChannel | undefined;
 		}
 		if (!feCh) {
 			feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
-				fs.appendFileSync('./log.txt', err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 			})) as VoiceChannel | undefined;
 		}
 
@@ -248,7 +249,7 @@ client.on('ready', async () => {
 
 	async function sendLois() {
 		lois = (await client.users.fetch('284444211254657024').catch((err) => {
-			fs.appendFileSync('./log.txt', `Could not fetch lois: ${err}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${err}`);
 		})) as ClientUser | undefined;
 
 		const today = new Date();
@@ -289,7 +290,7 @@ client.on('message', async (msg: Message) => {
 });
 
 client.on('error', (err: Error) => {
-	fs.appendFileSync('./log.txt', err.message);
+	fs.appendFileSync(path.join(__dirname, 'log.txt'), err.message);
 });
 
 client.login(process.env.DISCORD_TOKEN!);
