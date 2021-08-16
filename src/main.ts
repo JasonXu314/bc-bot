@@ -281,9 +281,9 @@ client.on('message', async (msg: Message) => {
 		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
 		const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
 			curHashrate / 1_000_000
-		}MH\nReported Hashrate: ${repHashrate / 1_000_000}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${
-			usdRate * 60 * 24
-		}\nGas Rate: ${gasRate}`;
+		}MH\nReported Hashrate: ${
+			repHashrate / 1_000_000
+		}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
 		await (msg.channel as TextChannel).send(long);
 	}
 });
