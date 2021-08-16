@@ -5,8 +5,6 @@ import fs from 'fs';
 
 dotenv.config();
 
-const BASE_URL = 'https://api.ethermine.org';
-const ADDR = '0xCe09D2Be2852CecB978B76E4a7F0DD3ad5B8b626';
 const GAS_URL = `https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=${process.env.ETHERSCAN_TOKEN}`;
 
 interface IStats {
@@ -169,10 +167,10 @@ client.on('ready', async () => {
 	const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
 	const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
 		curHashrate / 1_000_000
-	}MH\nReported Hashrate: ${repHashrate / 1_000_000}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${
-		usdRate * 60 * 24
-	}\nGas Rate: ${gasRate}`;
-	const short = `$${(usdRate * 60 * 24).toFixed(2)}, ${(ethRate * 60 * 24).toFixed(4)} ETH`;
+	}MH\nReported Hashrate: ${
+		repHashrate / 1_000_000
+	}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
+	const short = `$${usdRate.toFixed(2)}, ${ethRate.toFixed(4)} ETH`;
 	if (ch) {
 		ch.setName(short);
 	}
@@ -226,10 +224,10 @@ client.on('ready', async () => {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
 			const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
 				curHashrate / 1_000_000
-			}MH\nReported Hashrate: ${repHashrate / 1_000_000}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${
-				usdRate * 60 * 24
-			}\nGas Rate: ${gasRate}`;
-			const short = `$${(usdRate * 60 * 24).toFixed(2)}, ${(ethRate * 60 * 24).toFixed(4)} ETH`;
+			}MH\nReported Hashrate: ${
+				repHashrate / 1_000_000
+			}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
+			const short = `$${usdRate.toFixed(2)}, ${ethRate.toFixed(4)} ETH`;
 			if (ch) {
 				ch.setName(short);
 			}
@@ -264,9 +262,9 @@ client.on('ready', async () => {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
 			const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
 				curHashrate / 1_000_000
-			}MH\nReported Hashrate: ${repHashrate / 1_000_000}MH\nETH Per Day: ${ethRate * 60 * 24} ETH\nUSD Per Day: $${
-				usdRate * 60 * 24
-			}\nGas Rate: ${gasRate}`;
+			}MH\nReported Hashrate: ${
+				repHashrate / 1_000_000
+			}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
 			lois.send(long);
 		}
 
