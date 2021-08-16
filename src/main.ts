@@ -42,10 +42,58 @@ interface IStatusResponse {
 	};
 }
 
+interface IEarningsResponse {
+	earningStats: {
+		meanReward: number;
+		reward: number;
+		timestamp: string;
+	}[];
+	expectedReward24H: number;
+	expectedRewardWeek: number;
+	pendingPayouts: unknown[];
+	succeedPayouts: unknown[];
+	totalUnpaid: number;
+}
+
+interface IExchangeStats {
+	blocksFound: string;
+	exchangeRates: {
+		USD: number;
+	};
+	expectedReward24H: number;
+	hashrate: string;
+	meanExpectedReward24H: number;
+	threshold: number;
+}
+
+interface IExchangeResponse {
+	cryptoCurrencies: {
+		explorer: {
+			base: string;
+			tx: string;
+			wallet: string;
+		};
+		legacy: boolean;
+		name: string;
+		payoutAt: string;
+		profitPerPower: number;
+		servers: {
+			host: string;
+			ports: number[];
+			region: string;
+			ssl_ports: number[];
+		};
+		threshold: number;
+		title: string;
+	}[];
+	fiatCurrencies: string[];
+	stats: {
+		ETC: IExchangeStats;
+		ETH: IExchangeStats;
+	};
+}
+
 async function fetchData(): Promise<IStats> {
-	const res = await axios.get(`${BASE_URL}/miner/${ADDR}/currentStats`).catch((err: AxiosError<any>) => {
-		fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
-	});
 	const statusRes = await axios
 		.get<IStatusResponse>(
 			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/workers'
@@ -53,7 +101,19 @@ async function fetchData(): Promise<IStats> {
 		.catch((err: AxiosError<any>) => {
 			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
-	if (!res || !statusRes) {
+	const earningsRes = await axios
+		.get<IEarningsResponse>(
+			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/billing-acc'
+		)
+		.catch((err: AxiosError<any>) => {
+			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
+		});
+	const exchangeRes = await axios
+		.get<IExchangeResponse>('https://hiveon.net/api/v1/stats/pool')
+		.catch((err: AxiosError<any>) => {
+			fs.appendFileSync('./log.txt', `Error:\n${JSON.stringify(err, null, 4)}`);
+		});
+	if (!earningsRes || !statusRes || !exchangeRes) {
 		return {
 			usdRate: 0,
 			ethRate: 0,
@@ -64,10 +124,13 @@ async function fetchData(): Promise<IStats> {
 		};
 	}
 
-	const usdRate = res.data.data.usdPerMin;
-	const ethRate = res.data.data.coinsPerMin;
-	const repHashrate = res.data.data.reportedHashrate;
-	const curHashrate = res.data.data.currentHashrate;
+	const ethRate = earningsRes.data.expectedReward24H;
+	const usdRate = ethRate * exchangeRes.data.stats.ETH.exchangeRates.USD;
+	const repHashrate = Object.values(statusRes.data.workers).reduce(
+		(t, stats) => t + parseInt(stats.reportedHashrate),
+		0
+	);
+	const curHashrate = Object.values(statusRes.data.workers).reduce((t, stats) => t + parseInt(stats.hashrate), 0);
 
 	const gas = await axios.get(GAS_URL);
 	const gasRate = gas.data.result.ProposeGasPrice;
