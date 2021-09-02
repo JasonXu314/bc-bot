@@ -112,6 +112,7 @@ async function fetchData(): Promise<IStats> {
 		.catch((err: AxiosError<any>) => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
+
 	if (!earningsRes || !statusRes || !exchangeRes) {
 		return {
 			usdRate: 0,
@@ -125,27 +126,39 @@ async function fetchData(): Promise<IStats> {
 
 	const ethRate = earningsRes.data.expectedReward24H;
 	const usdRate = ethRate * exchangeRes.data.stats.ETH.exchangeRates.USD;
-	const repHashrate = Object.values(statusRes.data.workers).reduce(
-		(t, stats) => t + parseInt(stats.reportedHashrate),
-		0
-	);
-	const curHashrate = Object.values(statusRes.data.workers).reduce((t, stats) => t + parseInt(stats.hashrate), 0);
+	try {
+		const repHashrate = Object.values(statusRes.data.workers).reduce(
+			(t, stats) => t + parseInt(stats.reportedHashrate),
+			0
+		);
+		const curHashrate = Object.values(statusRes.data.workers).reduce((t, stats) => t + parseInt(stats.hashrate), 0);
 
-	const gas = await axios.get(GAS_URL);
-	const gasRate = gas.data.result.ProposeGasPrice;
+		const gas = await axios.get(GAS_URL);
+		const gasRate = gas.data.result.ProposeGasPrice;
 
-	return {
-		usdRate,
-		ethRate,
-		repHashrate,
-		curHashrate,
-		gasRate,
-		statuses: {
-			'3060_rig': statusRes.data.workers['3060_rig'].online,
-			FE_Rig: statusRes.data.workers.FE_Rig.online,
-			Main_Rig: statusRes.data.workers.Main_Rig.online
-		}
-	};
+		return {
+			usdRate,
+			ethRate,
+			repHashrate,
+			curHashrate,
+			gasRate,
+			statuses: {
+				'3060_rig': statusRes.data.workers['3060_rig'].online,
+				FE_Rig: statusRes.data.workers.FE_Rig.online,
+				Main_Rig: statusRes.data.workers.Main_Rig.online
+			}
+		};
+	} catch (err) {
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
+		return {
+			usdRate: 0,
+			ethRate: 0,
+			repHashrate: 0,
+			curHashrate: 0,
+			gasRate: 0,
+			statuses: { '3060_rig': false, FE_Rig: false, Main_Rig: false }
+		};
+	}
 }
 
 const client = new Client();
@@ -166,7 +179,7 @@ client.on('ready', async () => {
 	})) as VoiceChannel | undefined;
 
 	const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
-	const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
+	const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
 		curHashrate / 1_000_000
 	}MH\nReported Hashrate: ${
 		repHashrate / 1_000_000
@@ -176,22 +189,30 @@ client.on('ready', async () => {
 		ch.setName(short);
 	}
 	if (mainCh) {
-		mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig');
+		mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+		});
 	}
 	if (secCh) {
-		secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig');
+		secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+		});
 	}
 	if (feCh) {
-		feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig');
+		feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+		});
 	}
 	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${JSON.stringify(err)}`);
 	})) as ClientUser | undefined;
 	let lois = (await client.users.fetch('284444211254657024').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${JSON.stringify(err)}`);
 	})) as ClientUser | undefined;
 	if (matthew) {
-		matthew.send(long);
+		matthew.send(long).catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+		});
 	}
 
 	setInterval(async () => {
@@ -223,26 +244,36 @@ client.on('ready', async () => {
 
 		if (ch || matthew || mainCh || secCh || feCh) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
-			const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
+			const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
 				curHashrate / 1_000_000
 			}MH\nReported Hashrate: ${
 				repHashrate / 1_000_000
 			}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
 			const short = `$${usdRate.toFixed(2)}, ${ethRate.toFixed(4)} ETH`;
 			if (ch) {
-				ch.setName(short);
+				ch.setName(short).catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+				});
 			}
 			if (matthew) {
-				matthew.send(long);
+				matthew.send(long).catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+				});
 			}
 			if (mainCh) {
-				mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig');
+				mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+				});
 			}
 			if (secCh) {
-				secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig');
+				secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+				});
 			}
 			if (feCh) {
-				feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig');
+				feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+				});
 			}
 		}
 	}, 1000 * 60 * 10);
@@ -261,7 +292,7 @@ client.on('ready', async () => {
 
 		if (lois) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-			const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
+			const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
 				curHashrate / 1_000_000
 			}MH\nReported Hashrate: ${
 				repHashrate / 1_000_000
@@ -280,7 +311,7 @@ client.on('message', async (msg: Message) => {
 		await (msg.channel as TextChannel).send('Hi');
 	} else if (msg.content === 'bc-nums') {
 		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-		const long = `As of ${new Date().toTimeString()}:\nCurrent Hashrate: ${
+		const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
 			curHashrate / 1_000_000
 		}MH\nReported Hashrate: ${
 			repHashrate / 1_000_000
