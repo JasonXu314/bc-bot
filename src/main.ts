@@ -149,7 +149,7 @@ async function fetchData(): Promise<IStats> {
 			}
 		};
 	} catch (err) {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 		return {
 			usdRate: 0,
 			ethRate: 0,
@@ -190,28 +190,28 @@ client.on('ready', async () => {
 	}
 	if (mainCh) {
 		mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 		});
 	}
 	if (secCh) {
 		secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 		});
 	}
 	if (feCh) {
 		feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 		});
 	}
 	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${JSON.stringify(err)}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${err}`);
 	})) as ClientUser | undefined;
 	let lois = (await client.users.fetch('284444211254657024').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${JSON.stringify(err)}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${err}`);
 	})) as ClientUser | undefined;
 	if (matthew) {
 		matthew.send(long).catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 		});
 	}
 
@@ -252,27 +252,27 @@ client.on('ready', async () => {
 			const short = `$${usdRate.toFixed(2)}, ${ethRate.toFixed(4)} ETH`;
 			if (ch) {
 				ch.setName(short).catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 				});
 			}
 			if (matthew) {
 				matthew.send(long).catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 				});
 			}
 			if (mainCh) {
 				mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 				});
 			}
 			if (secCh) {
 				secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 				});
 			}
 			if (feCh) {
 				feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err)}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
 				});
 			}
 		}
