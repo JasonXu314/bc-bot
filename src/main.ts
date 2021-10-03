@@ -123,9 +123,9 @@ async function fetchData(): Promise<Partial<IStats>> {
 			curHashrate,
 			gasRate,
 			statuses: {
-				'3060_rig': statusRes?.data.workers['3060_rig'].online || false,
-				FE_Rig: statusRes?.data.workers.FE_Rig.online || false,
-				Main_Rig: statusRes?.data.workers.Main_Rig.online || false
+				'3060_rig': statusRes?.data.workers['3060_rig']?.online || false,
+				FE_Rig: statusRes?.data.workers.FE_Rig?.online || false,
+				Main_Rig: statusRes?.data.workers.Main_Rig?.online || false
 			}
 		};
 	} catch (err) {
