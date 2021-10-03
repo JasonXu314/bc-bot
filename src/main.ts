@@ -92,46 +92,26 @@ interface IExchangeResponse {
 	};
 }
 
-async function fetchData(): Promise<IStats> {
+async function fetchData(): Promise<Partial<IStats>> {
 	const statusRes = await axios
-		.get<IStatusResponse>(
-			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/workers'
-		)
+		.get<IStatusResponse>('https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/workers')
 		.catch((err: AxiosError<any>) => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
 	const earningsRes = await axios
-		.get<IEarningsResponse>(
-			'https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/billing-acc'
-		)
+		.get<IEarningsResponse>('https://hiveon.net/api/v1/stats/miner/ce09d2be2852cecb978b76e4a7f0dd3ad5b8b626/ETH/billing-acc')
 		.catch((err: AxiosError<any>) => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
 		});
-	const exchangeRes = await axios
-		.get<IExchangeResponse>('https://hiveon.net/api/v1/stats/pool')
-		.catch((err: AxiosError<any>) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
-		});
+	const exchangeRes = await axios.get<IExchangeResponse>('https://hiveon.net/api/v1/stats/pool').catch((err: AxiosError<any>) => {
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${JSON.stringify(err, null, 4)}`);
+	});
 
-	if (!earningsRes || !statusRes || !exchangeRes) {
-		return {
-			usdRate: 0,
-			ethRate: 0,
-			repHashrate: 0,
-			curHashrate: 0,
-			gasRate: 0,
-			statuses: { '3060_rig': false, FE_Rig: false, Main_Rig: false }
-		};
-	}
-
-	const ethRate = earningsRes.data.expectedReward24H;
-	const usdRate = ethRate * exchangeRes.data.stats.ETH.exchangeRates.USD;
+	const ethRate = earningsRes?.data.expectedReward24H;
+	const usdRate = ethRate && exchangeRes ? ethRate * exchangeRes.data.stats.ETH.exchangeRates.USD : undefined;
 	try {
-		const repHashrate = Object.values(statusRes.data.workers).reduce(
-			(t, stats) => t + parseInt(stats.reportedHashrate),
-			0
-		);
-		const curHashrate = Object.values(statusRes.data.workers).reduce((t, stats) => t + parseInt(stats.hashrate), 0);
+		const repHashrate = statusRes ? Object.values(statusRes.data.workers).reduce((t, stats) => t + parseInt(stats.reportedHashrate), 0) : undefined;
+		const curHashrate = statusRes ? Object.values(statusRes.data.workers).reduce((t, stats) => t + parseInt(stats.hashrate), 0) : undefined;
 
 		const gas = await axios.get(GAS_URL);
 		const gasRate = gas.data.result.ProposeGasPrice;
@@ -143,13 +123,13 @@ async function fetchData(): Promise<IStats> {
 			curHashrate,
 			gasRate,
 			statuses: {
-				'3060_rig': statusRes.data.workers['3060_rig'].online,
-				FE_Rig: statusRes.data.workers.FE_Rig.online,
-				Main_Rig: statusRes.data.workers.Main_Rig.online
+				'3060_rig': statusRes?.data.workers['3060_rig'].online || false,
+				FE_Rig: statusRes?.data.workers.FE_Rig.online || false,
+				Main_Rig: statusRes?.data.workers.Main_Rig.online || false
 			}
 		};
 	} catch (err) {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}\n`);
 		return {
 			usdRate: 0,
 			ethRate: 0,
@@ -162,6 +142,31 @@ async function fetchData(): Promise<IStats> {
 }
 
 const client = new Client();
+
+const lastKnownData: IStats = {
+	usdRate: 0,
+	ethRate: 0,
+	repHashrate: 0,
+	curHashrate: 0,
+	gasRate: 0,
+	statuses: { '3060_rig': false, FE_Rig: false, Main_Rig: false }
+};
+
+function makeLong(
+	curHashrate: number | undefined,
+	repHashrate: number | undefined,
+	ethRate: number | undefined,
+	usdRate: number | undefined,
+	gasRate: number | undefined
+): string {
+	return `As of ${new Date().toLocaleTimeString('en-US')}:\n${
+		curHashrate ? `Current Hashrate: ${curHashrate / 1_000_000}` : `Last Known Hashrate: ${lastKnownData.curHashrate / 1_000_000}`
+	}MH\n${repHashrate ? `Reported Hashrate: ${repHashrate / 1_000_000}` : `Last Known Reported Hashrate: ${lastKnownData.repHashrate / 1_000_000}`}MH\n${
+		ethRate ? `ETH Per Day: ${ethRate}` : `Last Known ETH Per Day: ${lastKnownData.ethRate}`
+	} ETH\n${usdRate ? `USD Per Day: $${usdRate}` : `Last Known USD Per Day: $${lastKnownData.usdRate}`}\n${
+		gasRate ? `Gas Rate: ${gasRate}` : `Last Known Gas Rate: ${lastKnownData.gasRate}`
+	}`;
+}
 
 client.on('ready', async () => {
 	console.log('Connected to Discord');
@@ -179,39 +184,53 @@ client.on('ready', async () => {
 	})) as VoiceChannel | undefined;
 
 	const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
-	const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
-		curHashrate / 1_000_000
-	}MH\nReported Hashrate: ${
-		repHashrate / 1_000_000
-	}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
-	const short = `$${usdRate.toFixed(2)}, ${ethRate.toFixed(4)} ETH`;
+	if (curHashrate) {
+		lastKnownData.curHashrate = curHashrate;
+	}
+	if (ethRate) {
+		lastKnownData.ethRate = ethRate;
+	}
+	if (repHashrate) {
+		lastKnownData.repHashrate = repHashrate;
+	}
+	if (usdRate) {
+		lastKnownData.usdRate = usdRate;
+	}
+	if (gasRate) {
+		lastKnownData.gasRate = gasRate;
+	}
+	if (statuses) {
+		lastKnownData.statuses = statuses;
+	}
+	const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
+	const short = `$${usdRate?.toFixed(2) || lastKnownData.usdRate.toFixed(2)}, ${ethRate?.toFixed(4) || lastKnownData.ethRate.toFixed(4)} ETH`;
 	if (ch) {
 		ch.setName(short);
 	}
 	if (mainCh) {
-		mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+		mainCh.setName((statuses?.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
 	if (secCh) {
-		secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+		secCh.setName((statuses && statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
 	if (feCh) {
-		feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+		feCh.setName((statuses?.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
 	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nCould not fetch matthew: ${err}`);
 	})) as ClientUser | undefined;
 	let lois = (await client.users.fetch('284444211254657024').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${err}`);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nCould not fetch lois: ${err}`);
 	})) as ClientUser | undefined;
 	if (matthew) {
 		matthew.send(long).catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
 
@@ -244,35 +263,49 @@ client.on('ready', async () => {
 
 		if (ch || matthew || mainCh || secCh || feCh) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
-			const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
-				curHashrate / 1_000_000
-			}MH\nReported Hashrate: ${
-				repHashrate / 1_000_000
-			}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
-			const short = `$${usdRate.toFixed(2)}, ${ethRate.toFixed(4)} ETH`;
+			if (curHashrate) {
+				lastKnownData.curHashrate = curHashrate;
+			}
+			if (ethRate) {
+				lastKnownData.ethRate = ethRate;
+			}
+			if (repHashrate) {
+				lastKnownData.repHashrate = repHashrate;
+			}
+			if (usdRate) {
+				lastKnownData.usdRate = usdRate;
+			}
+			if (gasRate) {
+				lastKnownData.gasRate = gasRate;
+			}
+			if (statuses) {
+				lastKnownData.statuses = statuses;
+			}
+			const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
+			const short = `$${usdRate?.toFixed(2) || lastKnownData.usdRate.toFixed(2)}, ${ethRate?.toFixed(4) || lastKnownData.ethRate.toFixed(4)} ETH`;
 			if (ch) {
 				ch.setName(short).catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
 			if (matthew) {
 				matthew.send(long).catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
 			if (mainCh) {
-				mainCh.setName((statuses.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+				mainCh.setName((statuses?.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
 			if (secCh) {
-				secCh.setName((statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+				secCh.setName((statuses && statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
 			if (feCh) {
-				feCh.setName((statuses.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `Error:\n${err}`);
+				feCh.setName((statuses?.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
 		}
@@ -292,11 +325,7 @@ client.on('ready', async () => {
 
 		if (lois) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-			const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
-				curHashrate / 1_000_000
-			}MH\nReported Hashrate: ${
-				repHashrate / 1_000_000
-			}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
+			const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
 			lois.send(long);
 		}
 
@@ -311,11 +340,7 @@ client.on('message', async (msg: Message) => {
 		await (msg.channel as TextChannel).send('Hi');
 	} else if (msg.content === 'bc-nums') {
 		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-		const long = `As of ${new Date().toLocaleTimeString('en-US')}:\nCurrent Hashrate: ${
-			curHashrate / 1_000_000
-		}MH\nReported Hashrate: ${
-			repHashrate / 1_000_000
-		}MH\nETH Per Day: ${ethRate} ETH\nUSD Per Day: $${usdRate}\nGas Rate: ${gasRate}`;
+		const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
 		await (msg.channel as TextChannel).send(long);
 	}
 });
