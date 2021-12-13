@@ -14,7 +14,7 @@ interface IStats {
 	usdRate: number;
 	ethRate: number;
 	gasRate: number;
-	statuses: { '3060_rig': boolean; FE_Rig: boolean; Main_Rig: boolean };
+	statuses: { '3060Ti_Rig': boolean; '3060_rig': boolean; FE_Rig: boolean; Main_Rig: boolean };
 }
 
 interface IStatus {
@@ -35,6 +35,7 @@ interface IStatus {
 
 interface IStatusResponse {
 	workers: {
+		'3060Ti_Rig': IStatus;
 		'3060_rig': IStatus;
 		FE_Rig: IStatus;
 		Main_Rig: IStatus;
@@ -123,6 +124,7 @@ async function fetchData(): Promise<Partial<IStats>> {
 			curHashrate,
 			gasRate,
 			statuses: {
+				'3060Ti_Rig': statusRes?.data.workers['3060Ti_Rig']?.online || false,
 				'3060_rig': statusRes?.data.workers['3060_rig']?.online || false,
 				FE_Rig: statusRes?.data.workers.FE_Rig?.online || false,
 				Main_Rig: statusRes?.data.workers.Main_Rig?.online || false
@@ -136,7 +138,7 @@ async function fetchData(): Promise<Partial<IStats>> {
 			repHashrate: 0,
 			curHashrate: 0,
 			gasRate: 0,
-			statuses: { '3060_rig': false, FE_Rig: false, Main_Rig: false }
+			statuses: { '3060Ti_Rig': false, '3060_rig': false, FE_Rig: false, Main_Rig: false }
 		};
 	}
 }
@@ -149,7 +151,7 @@ const lastKnownData: IStats = {
 	repHashrate: 0,
 	curHashrate: 0,
 	gasRate: 0,
-	statuses: { '3060_rig': false, FE_Rig: false, Main_Rig: false }
+	statuses: { '3060Ti_Rig': false, '3060_rig': false, FE_Rig: false, Main_Rig: false }
 };
 
 function makeLong(
@@ -180,6 +182,9 @@ client.on('ready', async () => {
 		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 	})) as VoiceChannel | undefined;
 	let feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+	})) as VoiceChannel | undefined;
+	let tiCh = (await client.channels.fetch('920056928384745533').catch((err) => {
 		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 	})) as VoiceChannel | undefined;
 
@@ -222,6 +227,11 @@ client.on('ready', async () => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
+	if (tiCh) {
+		tiCh.setName((statuses?.['3060Ti_Rig'] ? '🟢' : '🔴') + ' 3060Ti Rig').catch((err) => {
+			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
+		});
+	}
 	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
 		fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nCould not fetch matthew: ${err}`);
 	})) as ClientUser | undefined;
@@ -260,8 +270,13 @@ client.on('ready', async () => {
 				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
 			})) as VoiceChannel | undefined;
 		}
+		if (!tiCh) {
+			tiCh = (await client.channels.fetch('920056928384745533').catch((err) => {
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+			})) as VoiceChannel | undefined;
+		}
 
-		if (ch || matthew || mainCh || secCh || feCh) {
+		if (ch || matthew || mainCh || secCh || feCh || tiCh) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
 			if (curHashrate) {
 				lastKnownData.curHashrate = curHashrate;
@@ -305,6 +320,11 @@ client.on('ready', async () => {
 			}
 			if (feCh) {
 				feCh.setName((statuses?.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
+				});
+			}
+			if (tiCh) {
+				tiCh.setName((statuses?.['3060Ti_Rig'] ? '🟢' : '🔴') + ' 3060Ti Rig').catch((err) => {
 					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
