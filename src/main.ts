@@ -14,7 +14,7 @@ interface IStats {
 	usdRate: number;
 	ethRate: number;
 	gasRate: number;
-	statuses: { '3060Ti_Rig': boolean; '3060_rig': boolean; FE_Rig: boolean; Main_Rig: boolean };
+	statuses: { '3060Ti_Rig': boolean; '3060_Rig': boolean; FE_Rig: boolean; Main_Rig: boolean };
 }
 
 interface IStatus {
@@ -36,7 +36,7 @@ interface IStatus {
 interface IStatusResponse {
 	workers: {
 		'3060Ti_Rig': IStatus;
-		'3060_rig': IStatus;
+		'3060_Rig': IStatus;
 		FE_Rig: IStatus;
 		Main_Rig: IStatus;
 	};
@@ -125,7 +125,7 @@ async function fetchData(): Promise<Partial<IStats>> {
 			gasRate,
 			statuses: {
 				'3060Ti_Rig': statusRes?.data.workers['3060Ti_Rig']?.online || false,
-				'3060_rig': statusRes?.data.workers['3060_rig']?.online || false,
+				'3060_Rig': statusRes?.data.workers['3060_Rig']?.online || false,
 				FE_Rig: statusRes?.data.workers.FE_Rig?.online || false,
 				Main_Rig: statusRes?.data.workers.Main_Rig?.online || false
 			}
@@ -138,7 +138,7 @@ async function fetchData(): Promise<Partial<IStats>> {
 			repHashrate: 0,
 			curHashrate: 0,
 			gasRate: 0,
-			statuses: { '3060Ti_Rig': false, '3060_rig': false, FE_Rig: false, Main_Rig: false }
+			statuses: { '3060Ti_Rig': false, '3060_Rig': false, FE_Rig: false, Main_Rig: false }
 		};
 	}
 }
@@ -151,7 +151,7 @@ const lastKnownData: IStats = {
 	repHashrate: 0,
 	curHashrate: 0,
 	gasRate: 0,
-	statuses: { '3060Ti_Rig': false, '3060_rig': false, FE_Rig: false, Main_Rig: false }
+	statuses: { '3060Ti_Rig': false, '3060_Rig': false, FE_Rig: false, Main_Rig: false }
 };
 
 function makeLong(
@@ -218,7 +218,7 @@ client.on('ready', async () => {
 		});
 	}
 	if (secCh) {
-		secCh.setName((statuses && statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
+		secCh.setName((statuses && statuses['3060_Rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
@@ -314,7 +314,7 @@ client.on('ready', async () => {
 				});
 			}
 			if (secCh) {
-				secCh.setName((statuses && statuses['3060_rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
+				secCh.setName((statuses && statuses['3060_Rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
 					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
