@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { Client, ClientUser, Message, TextChannel, VoiceChannel } from 'discord.js';
+import { Client, ClientUser, Message, TextChannel, VoiceChannel, MessageEmbed } from 'discord.js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -14,7 +14,7 @@ interface IStats {
 	usdRate: number;
 	ethRate: number;
 	gasRate: number;
-	statuses: { '3060Ti_Rig': boolean; '3060_Rig': boolean; FE_Rig: boolean; Main_Rig: boolean };
+	statuses: { '3060Ti_Rig': boolean; '3060_Rig': boolean; '3080_Rig': boolean };
 }
 
 interface IStatus {
@@ -37,8 +37,7 @@ interface IStatusResponse {
 	workers: {
 		'3060Ti_Rig': IStatus;
 		'3060_Rig': IStatus;
-		FE_Rig: IStatus;
-		Main_Rig: IStatus;
+		'3080_Rig': IStatus;
 	};
 }
 
@@ -126,8 +125,7 @@ async function fetchData(): Promise<Partial<IStats>> {
 			statuses: {
 				'3060Ti_Rig': statusRes?.data.workers['3060Ti_Rig']?.online || false,
 				'3060_Rig': statusRes?.data.workers['3060_Rig']?.online || false,
-				FE_Rig: statusRes?.data.workers.FE_Rig?.online || false,
-				Main_Rig: statusRes?.data.workers.Main_Rig?.online || false
+				'3080_Rig': statusRes?.data.workers['3080_Rig']?.online || false
 			}
 		};
 	} catch (err) {
@@ -138,7 +136,7 @@ async function fetchData(): Promise<Partial<IStats>> {
 			repHashrate: 0,
 			curHashrate: 0,
 			gasRate: 0,
-			statuses: { '3060Ti_Rig': false, '3060_Rig': false, FE_Rig: false, Main_Rig: false }
+			statuses: { '3060Ti_Rig': false, '3060_Rig': false, '3080_Rig': false }
 		};
 	}
 }
@@ -151,41 +149,42 @@ const lastKnownData: IStats = {
 	repHashrate: 0,
 	curHashrate: 0,
 	gasRate: 0,
-	statuses: { '3060Ti_Rig': false, '3060_Rig': false, FE_Rig: false, Main_Rig: false }
+	statuses: { '3060Ti_Rig': false, '3060_Rig': false, '3080_Rig': false }
 };
 
-function makeLong(
+function makeStatsEmbed(
 	curHashrate: number | undefined,
 	repHashrate: number | undefined,
 	ethRate: number | undefined,
 	usdRate: number | undefined,
 	gasRate: number | undefined
-): string {
-	return `As of ${new Date().toLocaleTimeString('en-US')}:\n${
-		curHashrate ? `Current Hashrate: ${curHashrate / 1_000_000}` : `Last Known Hashrate: ${lastKnownData.curHashrate / 1_000_000}`
-	}MH\n${repHashrate ? `Reported Hashrate: ${repHashrate / 1_000_000}` : `Last Known Reported Hashrate: ${lastKnownData.repHashrate / 1_000_000}`}MH\n${
-		ethRate ? `ETH Per Day: ${ethRate}` : `Last Known ETH Per Day: ${lastKnownData.ethRate}`
-	} ETH\n${usdRate ? `USD Per Day: $${usdRate}` : `Last Known USD Per Day: $${lastKnownData.usdRate}`}\n${
-		gasRate ? `Gas Rate: ${gasRate}` : `Last Known Gas Rate: ${lastKnownData.gasRate}`
-	}`;
+): MessageEmbed {
+	const embed = new MessageEmbed()
+		.setTitle("Mining Status Report")
+		.setColor(0x2828d6)
+		.setTimestamp()
+		.addFields(
+			{ name: 'Hashrate', value: `${curHashrate ? 'On-Pool:' : 'Last Known On-Pool:'} ${(curHashrate ? curHashrate / 1_000_000 : lastKnownData.curHashrate / 1_000_000).toFixed(2)} Mh\n${repHashrate ? 'Reported:' : 'Last Known Reported:'} ${(repHashrate ? repHashrate / 1_000_000 : lastKnownData.repHashrate / 1_000_000).toFixed(2)} Mh`, inline: false },
+			{ name: 'Daily Revenue', value: `${(ethRate ? ethRate : lastKnownData.ethRate).toFixed(6)} ETH\n$${(usdRate ? usdRate : lastKnownData.ethRate).toFixed(2)} USD`, inline: false },
+			{ name: 'Gas Price', value: `${gasRate} GWEI`, inline: false },
+		);
+
+    return embed;
 }
 
 client.on('ready', async () => {
 	console.log('Connected to Discord');
 	let ch = (await client.channels.fetch('864740513709686785').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 	})) as VoiceChannel | undefined;
 	let mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 	})) as VoiceChannel | undefined;
 	let secCh = (await client.channels.fetch('876493768491163658').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
-	})) as VoiceChannel | undefined;
-	let feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 	})) as VoiceChannel | undefined;
 	let tiCh = (await client.channels.fetch('920056928384745533').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 	})) as VoiceChannel | undefined;
 
 	const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
@@ -207,23 +206,17 @@ client.on('ready', async () => {
 	if (statuses) {
 		lastKnownData.statuses = statuses;
 	}
-	const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
 	const short = `$${usdRate?.toFixed(2) || lastKnownData.usdRate.toFixed(2)}, ${ethRate?.toFixed(4) || lastKnownData.ethRate.toFixed(4)} ETH`;
 	if (ch) {
 		ch.setName(short);
 	}
 	if (mainCh) {
-		mainCh.setName((statuses?.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
+		mainCh.setName((statuses?.['3080_Rig'] ? '🟢' : '🔴') + ' 3080 Rig').catch((err) => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
 	if (secCh) {
-		secCh.setName((statuses && statuses['3060_Rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
-		});
-	}
-	if (feCh) {
-		feCh.setName((statuses?.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+		secCh.setName((statuses?.['3060_Rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
@@ -232,51 +225,35 @@ client.on('ready', async () => {
 			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 		});
 	}
-	let matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nCould not fetch matthew: ${err}`);
-	})) as ClientUser | undefined;
-	let lois = (await client.users.fetch('284444211254657024').catch((err) => {
-		fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nCould not fetch lois: ${err}`);
-	})) as ClientUser | undefined;
-	if (matthew) {
-		matthew.send(long).catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
-		});
-	}
-
+	
+	// Matthew (every 10 mins)
+	(await sendStats('854267715539042329', 1000 * 60 * 10))();
+	// Lois (every hour)
+	(await sendStats('284444211254657024', 1000 * 60 * 60))();
+	
 	setInterval(async () => {
 		if (!ch) {
 			ch = (await client.channels.fetch('864740513709686785').catch((err) => {
-				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 			})) as VoiceChannel | undefined;
-		}
-		if (!matthew) {
-			matthew = (await client.users.fetch('854267715539042329').catch((err) => {
-				fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch matthew: ${err}`);
-			})) as ClientUser | undefined;
 		}
 		if (!mainCh) {
 			mainCh = (await client.channels.fetch('876493133540626442').catch((err) => {
-				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 			})) as VoiceChannel | undefined;
 		}
 		if (!secCh) {
 			secCh = (await client.channels.fetch('876493768491163658').catch((err) => {
-				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
-			})) as VoiceChannel | undefined;
-		}
-		if (!feCh) {
-			feCh = (await client.channels.fetch('876493830088708096').catch((err) => {
-				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 			})) as VoiceChannel | undefined;
 		}
 		if (!tiCh) {
 			tiCh = (await client.channels.fetch('920056928384745533').catch((err) => {
-				fs.appendFileSync(path.join(__dirname, 'log.txt'), err);
+				fs.appendFileSync(path.join(__dirname, 'log.txt'), err.toString());
 			})) as VoiceChannel | undefined;
 		}
 
-		if (ch || matthew || mainCh || secCh || feCh || tiCh) {
+		if (ch || mainCh || secCh || tiCh) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate, statuses } = await fetchData();
 			if (curHashrate) {
 				lastKnownData.curHashrate = curHashrate;
@@ -296,30 +273,19 @@ client.on('ready', async () => {
 			if (statuses) {
 				lastKnownData.statuses = statuses;
 			}
-			const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
 			const short = `$${usdRate?.toFixed(2) || lastKnownData.usdRate.toFixed(2)}, ${ethRate?.toFixed(4) || lastKnownData.ethRate.toFixed(4)} ETH`;
 			if (ch) {
 				ch.setName(short).catch((err) => {
 					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
-			if (matthew) {
-				matthew.send(long).catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
-				});
-			}
 			if (mainCh) {
-				mainCh.setName((statuses?.Main_Rig ? '🟢' : '🔴') + ' Main Rig').catch((err) => {
+				mainCh.setName((statuses?.['3080_Rig'] ? '🟢' : '🔴') + ' 3080 Rig').catch((err) => {
 					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
 			if (secCh) {
-				secCh.setName((statuses && statuses['3060_Rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
-					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
-				});
-			}
-			if (feCh) {
-				feCh.setName((statuses?.FE_Rig ? '🟢' : '🔴') + ' FE Rig').catch((err) => {
+				secCh.setName((statuses?.['3060_Rig'] ? '🟢' : '🔴') + ' 3060 Rig').catch((err) => {
 					fs.appendFileSync(path.join(__dirname, 'log.txt'), `\nError:\n${err}`);
 				});
 			}
@@ -330,37 +296,34 @@ client.on('ready', async () => {
 			}
 		}
 	}, 1000 * 60 * 10);
+});
 
-	async function sendLois() {
-		lois = (await client.users.fetch('284444211254657024').catch((err) => {
-			fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch lois: ${err}`);
-		})) as ClientUser | undefined;
+async function sendStats(userId : string, interval: number) {
+	const user = (await client.users.fetch(userId).catch((err) => {
+		fs.appendFileSync(path.join(__dirname, 'log.txt'), `Could not fetch user: ${err}`);
+	})) as ClientUser | undefined;
 
-		const today = new Date();
-		const day = today.getDate();
-		const month = today.getMonth();
-		const year = today.getFullYear();
-		const hour = today.getHours();
-		const eleven = new Date(year, month, hour >= 11 ? day + 1 : day, 11);
-
-		if (lois) {
+	const fn = async () => {
+		if (user) {
 			const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-			const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
-			lois.send(long);
+			const statsEmbed = makeStatsEmbed(curHashrate, repHashrate, ethRate, usdRate, gasRate);
+
+			user.send({ embed: statsEmbed });
 		}
 
-		setTimeout(sendLois, eleven.valueOf() - today.valueOf());
+		setTimeout(fn, interval);
 	}
 
-	sendLois();
-});
+	return fn;
+};
+
 
 client.on('message', async (msg: Message) => {
 	if (msg.content === 'bc-status') {
-		await (msg.channel as TextChannel).send('Hi');
+		await (msg.channel as TextChannel).send(`Hi, <@${msg.author.id}>`);
 	} else if (msg.content === 'bc-nums') {
 		const { curHashrate, ethRate, repHashrate, usdRate, gasRate } = await fetchData();
-		const long = makeLong(curHashrate, repHashrate, ethRate, usdRate, gasRate);
+		const long = makeStatsEmbed(curHashrate, repHashrate, ethRate, usdRate, gasRate);
 		await (msg.channel as TextChannel).send(long);
 	}
 });
