@@ -164,7 +164,7 @@ function makeStatsEmbed(
 		.setColor(0x2828d6)
 		.setTimestamp()
 		.addFields(
-			{ name: 'Hashrate', value: `${curHashrate ? 'On-Pool:' : 'Last Known On-Pool:'} ${(curHashrate ? curHashrate / 1_000_000 : lastKnownData.curHashrate / 1_000_000).toFixed(2)} Mh\n${repHashrate ? 'Reported:' : 'Last Known Reported:'} ${(repHashrate ? repHashrate / 1_000_000 : lastKnownData.repHashrate / 1_000_000).toFixed(2)} Mh`, inline: false },
+			{ name: `${curHashrate ? 'Hashrate:' : 'Last Known Hashrate:'}`, value: `${(curHashrate ? curHashrate / 1_000_000 : lastKnownData.curHashrate / 1_000_000).toFixed(2)} Mh\n${(repHashrate ? repHashrate / 1_000_000 : lastKnownData.repHashrate / 1_000_000).toFixed(2)} Mh`, inline: false },
 			{ name: 'Daily Revenue', value: `${(ethRate ? ethRate : lastKnownData.ethRate).toFixed(6)} ETH\n$${(usdRate ? usdRate : lastKnownData.ethRate).toFixed(2)} USD`, inline: false },
 			{ name: 'Gas Price', value: `${gasRate} GWEI`, inline: false },
 		);
